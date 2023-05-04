@@ -38,8 +38,8 @@ int main(){
         pre[i] = a;
     }
     //printf("fun: %x\n", pre[2]);
-    for(int i = 3; i < 50; i++){
+    for(int i = 1; i < 50; i++){
         set a = new_set(2, i);
-        printf("%i: %u\n", i, forsen(a, 0));
+        printf("%u,\n", pre[i]);
     }
 }

@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use once_cell::sync::Lazy;
+
+static ELIMINATIONS: Lazy<Vec<OptSet>> = Lazy::new(|| (1..60).map(|x| OptSet(u128::MAX).pick(x)).collect::<Vec<OptSet>>());
+
 fn main() {
     for i in 2..50{
         let mut memo = Memo(HashMap::new());
-        let a = Set::new(2..=i);
+        let a = OptSet::new(2, i);
         println!("{}:{:?}", i, forsen(a, 0, &mut memo));
     }
 }
@@ -12,31 +16,30 @@ fn main() {
 #[derive(Eq, PartialEq, Hash, Clone)]
 struct Set(Vec<usize>);
 
-struct Memo(HashMap<Set, bool>);
+struct Memo(HashMap<OptSet, bool>);
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct OptSet(u128, Rc<Vec<u128>>);
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Copy)]
+struct OptSet(u128);
 
 impl OptSet{
     fn new(start: usize, end: usize) -> Self{
         let prot = ((1 << end)-1) ^ ((1 << start-1)-1);
         OptSet(
-            prot,
-            Rc::new([vec![0],(1..=end).map(|x| OptSet(prot, Rc::new(vec![])).pick(x).0).collect()].concat())
+            prot
         )
     }
     fn pick(self, a: usize) -> Self{
-        let mut krystof = self.0 & !1;
-        for i in 2..=a{
+        let mut krystof = self.0;
+        for i in 1..=a{
                 if a % i == 0 {
                     krystof &= !(1 << (i - 1));
                 }
         }
         //println!("{}", krystof);
-        OptSet(krystof, self.1)
+        OptSet(krystof)
     }
     fn opt_pick(&self, a: usize) -> Self{
-        OptSet(self.0 & self.1[a], self.1.clone())
+        OptSet(self.0 & ELIMINATIONS[a-1].0)
     }
     fn is_empty(&self) -> bool{
         self.0 == 0
@@ -117,8 +120,8 @@ impl Future{
     }
 }
 
-fn forsen(a: Set, turn: usize, memo: &mut Memo) -> (usize, bool){
-    if a.0.is_empty(){
+fn forsen(a: OptSet, turn: usize, memo: &mut Memo) -> (usize, bool){
+    if a.is_empty(){
         (0, turn % 2 == 1)
     }
     else if let Some(x) = memo.0.get(&a){
@@ -126,23 +129,23 @@ fn forsen(a: Set, turn: usize, memo: &mut Memo) -> (usize, bool){
     }
     else{
         if turn % 2 == 1{
-            for x in a.0.iter(){
-                if !forsen(a.pick(*x),turn+1, memo).1{
-                    memo.0.insert(a.clone(), true);
-                    return (*x, false);
+            for x in a.into_iter(){
+                if !forsen(a.opt_pick(x),turn+1, memo).1{
+                    memo.0.insert(a, true);
+                    return (x, false);
                 }
             }
-            memo.0.insert(a.clone(), false);
+            memo.0.insert(a, false);
             (0, true)
         }
         else{
-            for x in a.0.iter() {
-                if forsen(a.pick(*x), turn+1, memo).1{
-                    memo.0.insert(a.clone(), true);
-                    return (*x, true);
+            for x in a.into_iter() {
+                if forsen(a.opt_pick(x), turn+1, memo).1{
+                    memo.0.insert(a, true);
+                    return (x, true);
                 }
             }
-            memo.0.insert(a.clone(), false);
+            memo.0.insert(a, false);
             (0, false)
         }
     }
